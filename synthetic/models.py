@@ -27,12 +27,15 @@ class NLayer(nn.Module):
 	def __init__(self, dimensions : list[int], activations : list[nn.Module]):
 		super().__init__()
 
-		assert len(dimensions) == len(activations) + 1
+		assert len(dimensions) == len(activations) + 2
 
 		self.layers = nn.ModuleList()
-		for i in range(1, len(dimensions)):
+		for i in range(1, len(dimensions) - 1):
 			self.layers.append(nn.Linear(dimensions[i-1], dimensions[i]))
 			self.layers.append(activations[i-1])
+
+		self.layers.append(nn.Linear(dimensions[-2], dimensions[-1]))
+
 
 	def forward(self, x):
 		for layer in self.layers:

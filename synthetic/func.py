@@ -52,7 +52,7 @@ class ParityFunction:
                 self.masks[i][j] = 1
 
         if self.batch_size is not None:
-            self.masks = self.masks.unsqueeze(0).repeat(self.batch_size, 1, 1)
+            self.masks = self.masks.unsqueeze(0).expand(self.batch_size, -1, -1)
 
         self.masks = self.masks.to(self.device)
 
@@ -65,13 +65,13 @@ class ParityFunction:
             if len(x.shape) == 1:
                 x = x.unsqueeze(0)
 
-            masks = self.masks.unsqueeze(0).repeat(x.shape[0], 1, 1)
+            masks = self.masks.unsqueeze(0).expand(x.shape[0], -1, -1)
         else:
             if not (len(x.shape) == 2 and self.batch_size == x.shape[0]):
                 raise RuntimeError(f"Batch size of data ({x.shape}) does not match batch size of fn ({self.batch_size})")
             masks = self.masks
         
-        x = x.unsqueeze(1).repeat(1, self.k, 1)
+        x = x.unsqueeze(1).expand(-1, self.k, -1)
         y = x * self.masks
         y = y + (1. - self.masks)
         return y.prod(2).sum(1) / math.sqrt(self.k)

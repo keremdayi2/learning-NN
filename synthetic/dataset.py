@@ -5,6 +5,7 @@ from typing import Union, Optional
 from enum import Enum
 
 import math
+import time
 
 # pytorch et. al
 import torch
@@ -35,6 +36,8 @@ class GaussianFunctionDataset(Dataset):
     def __getitem__(self, idx):
         x = torch.randn(self.d).to(self.device)
         y = self.fn(x)
+        
+        
         return x, y
 
 class BooleanFunctionDataset(Dataset):
@@ -47,7 +50,10 @@ class BooleanFunctionDataset(Dataset):
         return int(1e15)
 
     def __getitem__(self, idx):
-        x = torch.where(torch.randn(self.d) > 0, torch.ones(self.d), -torch.ones(self.d)).to(self.device)
+        x = torch.randn(self.d).to(self.device)
+
+        x = torch.where(x > 0, 1., -1.)
+
         y = self.fn(x)
         return x, y
 
