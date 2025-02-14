@@ -1,5 +1,6 @@
 # python stuff
 import argparse
+import time
 
 # pytorch etc.
 import torch
@@ -16,6 +17,7 @@ import tools.timers as timers
 # printing variables
 ITERATION_PRINT_FREQUENCY = 500
 TEST_DATASET_SIZE = 16
+EVAL_FREQUENCY = 500
 
 # problem variables
 dimension = 512
@@ -32,7 +34,121 @@ batch_size = 64
 
 optimizer = "Adam"
 
+class Trainer:
+    def __init__(self, 
+        model : nn.Module, 
+        dataset, 
+        loss_fn,
+        optimizer,
+        batch_size : int, 
+        num_iterations : int,
+        eval_datasets : dict, # list of datasets to evaluate the model on 
+        eval_fns : dict = {} # list of eval functions to run
+        ):
+        self.model = model
+        self.dataset = dataset
+        self.dataloader = torch.utils.data.DataLoader(self.dataset, batch_size = batch_size)
+
+        self.loss_fn = loss_fn
+        self.optimizer = optimizer
+        self.batch_size = batch_size
+        self.num_iterations = num_iterations
+        self.eval_datasets = eval_datasets
+        self.eval_fns = eval_fns
+
+        self.device = next(self.model.parameters()).device
+
+    # return dataset_results, fn_results
+    def eval(self):
+        dataset_results = {}
+        
+        # run dataset evals
+        with torch.no_grad():
+            for label, dataset in self.eval_datasets.items():
+                dataloader = torch.utils.data.DataLoader(dataset, batch_size=self.batch_size)
+
+                avg_loss = 0.0
+                for i, (x,y) in enumerate(dataloader):
+
+                    if i == TEST_DATASET_SIZE:
+                        break
+
+                    x, y = x.to(self.device), y.to(self.device)
+                    avg_loss += self.loss_fn(self.model(x), y).item() / TEST_DATASET_SIZE
+
+                # add average loss on this dataset to the results
+                dataset_results[label] = avg_loss
+
+        fn_results = {}
+
+        # run function evals
+        with torch.no_grad():
+            for label, fn in self.eval_fns.items():
+                fn_results[label] = fn(self.model)
+
+        return dataset_results, fn_results
+
+    def train(self):
+        time_logger = timers.TimeLogger()
+
+        eval_results = []
+
+        losses = []
+        for i, (x,y) in enumerate(self.dataloader):
+            # eval flag
+            eval_flag = i % ITERATION_PRINT_FREQUENCY == 0 or i == 0
+
+            if i == self.num_iterations:
+                break
+
+            time_logger.log("data_gen")
+            x, y = x.to(self.device), y.to(self.device)
+            time_logger.log("data_2gpu")
+
+            self.optimizer.zero_grad()
+
+            output = self.model(x)
+            loss = self.loss_fn(output, y)
+            losses.append(loss.item())
+
+            time_logger.log("output")
+
+            loss.backward()
+
+            time_logger.log("grad")
+
+            # evaluate model given the datasets and functions and print results
+            if eval_flag:
+                print(20*'-' + f"Iteration {i+1}" + 20 * '-')
+                a, b = self.eval()
+
+                for dataset, loss in a.items():
+                    print(f"{dataset} loss: {loss}")
+
+                for fn, val in b.items():
+                    print(f"{fn} value {val}")
+
+                eval_results.append((i, a, b))
+
+                time_logger.log("eval") 
+            
+            self.optimizer.step()
+
+            time_logger.log("optim")
+
+        losses = torch.tensor(losses)
+
+        results = {
+            'losses' : losses,
+            'evals' : eval_results,
+            'time_consumption' : time_logger.get_results()
+        }
+
+        return results
+
 if __name__ == '__main__':
+    program_start_time = time.time()
+
     parser = argparse.ArgumentParser("Training script")
 
     parser.add_argument("--device", type = str, required = True, help = "Specify device used for torch training")
@@ -45,24 +161,12 @@ if __name__ == '__main__':
 
     torch.manual_seed(seed)
 
-    # if torch.cuda.is_available():
-    #     device = torch.device("cuda")
-    #     print("CUDA device found. Using GPU for computations.")
-    # elif torch.backends.mps.is_available():
-    #     device = torch.device("mps")
-    #     print("MPS device found. Using GPU for computations.")
-    # else:
-    #     device = torch.device("cpu")
-    #     print("GPU device not found. Using CPU for computations.")
-
-
     # set up dataset
     dataset = syn_dataset.generate_synthetic_dataset(syn_dataset.Distribution.Boolean, dimension, rank, fn_type, 'cpu')
-    dataloader = torch.utils.data.DataLoader(dataset, batch_size = batch_size)
     
     # model used for training
     # model = syn_models.TwoLayer(dimension, hidden_size, nn.ReLU()).to(device)
-    num_layers = 10
+    num_layers = 2
 
     model = syn_models.NLayer([dimension] + [hidden_size for i in range(num_layers - 1)] + [1], [nn.ReLU() for i in range(num_layers-1)]).to(device)
 
@@ -79,62 +183,14 @@ if __name__ == '__main__':
     else:
         raise RuntimeError("Invalid optimizer")
 
-    # training loop
-    losses = []
-    time_logger = timers.TimeLogger()
+    results = Trainer(model, dataset, loss_fn, optimizer, batch_size, num_iterations, {"test" : dataset}).train()
 
-    for  i, (x, y) in enumerate(dataloader):
-        time_logger.log("data_gen")
-        x, y = x.to(device), y.to(device)
-        time_logger.log("data_gpu")
-        
+    losses = results['losses']
+    evals = results['evals']
+    time_consumption = results['time_consumption']
 
-        print_flag = (i+1) % ITERATION_PRINT_FREQUENCY == 0 or i == 0
-        if print_flag:
-            print(20*'-' + f"Iteration {i+1}" + 20 * '-')
+    print(time_consumption)
+    torch.save(losses, 'out/losses.pt')
 
-        output = model(x)
-        loss = loss_fn(output, y)
-        losses.append(loss.item())
-
-        time_logger.log("output")
-
-        loss.backward()
-
-        time_logger.log("grad")
-
-        if print_flag:
-            with torch.no_grad():
-                avg_loss = 0.
-                for i, (x,y) in enumerate(dataloader):
-                    x, y = x.to(device), y.to(device)
-                    avg_loss += loss_fn(model(x), y).item() / TEST_DATASET_SIZE
-
-                    if i + 1 == TEST_DATASET_SIZE:
-                        break
-
-                print(f"Current average loss: {avg_loss}")
-
-                # compute the norm of trainable parameters
-                grad_norm = torch.norm(
-                    torch.stack(
-                        [torch.norm(p.grad.detach()) for p in model.parameters() if p.grad is not None]
-                        )
-                    )
-
-                print(f"Gradient norm: {grad_norm}")
-
-            time_logger.log("test")
-
-        optimizer.step()
-        optimizer.zero_grad()
-
-        time_logger.log("optim")
-
-        if i + 1 >= num_iterations:
-            break
-
-    losses = torch.tensor(losses)
-    torch.save(losses, f"out/losses-{seed}.pt")
-
-    print(time_logger.get_results())
+    program_end_time = time.time()
+    print(f"Program took: {program_end_time-program_start_time:0.1f}s to run")

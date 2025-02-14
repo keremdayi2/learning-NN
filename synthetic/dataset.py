@@ -71,7 +71,7 @@ def generate_synthetic_dataset(dist: Distribution, d : int, k : int, fn_type : F
     # then k is the degree of the function
     if fn_type == FunctionType.Monomial:
         idxs.append([i for i in range(k)])
-    if fn_type == FunctionType.Staircase:
+    elif fn_type == FunctionType.Staircase:
         idxs = [list(range(i+1)) for i in range(k)]
     else:
         raise RuntimeError("You did not specify a valid function type")

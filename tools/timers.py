@@ -26,3 +26,7 @@ class TimeLogger:
             averages[l] = this_label.mean()
 
         return averages
+
+    # total time elapsed since birth
+    def total(self):
+        return time.time() - checkpoints[0][1]
