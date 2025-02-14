@@ -14,6 +14,7 @@ import synthetic.models as syn_models
 # tools
 import tools.timers as timers
 
+
 # printing variables
 ITERATION_PRINT_FREQUENCY = 500
 TEST_DATASET_SIZE = 16
@@ -21,7 +22,7 @@ EVAL_FREQUENCY = 500
 
 # problem variables
 dimension = 512
-rank = 2
+rank = 3
 fn_type = syn_dataset.FunctionType.Monomial
 
 # model variables
@@ -29,8 +30,12 @@ hidden_size = 2048
 
 # train variables
 step_size = 1e-4
-num_iterations = 500
+num_iterations = 5000
 batch_size = 64
+
+# model params
+num_layers = 2
+
 
 optimizer = "Adam"
 
@@ -67,17 +72,24 @@ class Trainer:
             for label, dataset in self.eval_datasets.items():
                 dataloader = torch.utils.data.DataLoader(dataset, batch_size=self.batch_size)
 
-                avg_loss = 0.0
-                for i, (x,y) in enumerate(dataloader):
+                n_outputs = 0
+                for x,y in dataloader:
+                    n_outputs = y.shape[1]
+                    break
 
+                avg_losses = torch.zeros(n_outputs)
+                for i, (x,y) in enumerate(dataloader):
                     if i == TEST_DATASET_SIZE:
                         break
 
                     x, y = x.to(self.device), y.to(self.device)
-                    avg_loss += self.loss_fn(self.model(x), y).item() / TEST_DATASET_SIZE
+                    output = self.model(x)
+
+                    for i in range(n_outputs):
+                        avg_losses[i] += self.loss_fn(output[:, i], y[:, i]).item() / TEST_DATASET_SIZE
 
                 # add average loss on this dataset to the results
-                dataset_results[label] = avg_loss
+                dataset_results[label] = avg_losses
 
         fn_results = {}
 
@@ -94,6 +106,7 @@ class Trainer:
         eval_results = []
 
         losses = []
+        multi_losses = []
         for i, (x,y) in enumerate(self.dataloader):
             # eval flag
             eval_flag = i % ITERATION_PRINT_FREQUENCY == 0 or i == 0
@@ -109,7 +122,18 @@ class Trainer:
 
             output = self.model(x)
             loss = self.loss_fn(output, y)
+
+            n_outputs = y.shape[1]
+
             losses.append(loss.item())
+
+            # add multi losses for learning functions to R^p for p > 1
+            l = []
+            for j in range(n_outputs):
+                l.append(self.loss_fn(output[:, j], y[:, j]))
+
+            multi_losses.append(l)
+
 
             time_logger.log("output")
 
@@ -137,9 +161,11 @@ class Trainer:
             time_logger.log("optim")
 
         losses = torch.tensor(losses)
+        multi_losses = torch.tensor(multi_losses)
 
         results = {
             'losses' : losses,
+            'multi_losses' : multi_losses,
             'evals' : eval_results,
             'time_consumption' : time_logger.get_results()
         }
@@ -153,21 +179,25 @@ if __name__ == '__main__':
 
     parser.add_argument("--device", type = str, required = True, help = "Specify device used for torch training")
     parser.add_argument("--seed", type = int, required = True, help = "Specify seed")
+    parser.add_argument("--num_layers", type = int, required = True, help = "Specify number of layers used in training")
 
     args = parser.parse_args()
 
     device = args.device
     seed = args.seed
+    num_layers = args.num_layers
 
     torch.manual_seed(seed)
 
     # set up dataset
     dataset = syn_dataset.generate_synthetic_dataset(syn_dataset.Distribution.Boolean, dimension, rank, fn_type, 'cpu')
     
+    # fns = [syn_fn.ParityFunction(dimension, [[1]]), syn_fn.ParityFunction(dimension, [[1, 2, 3]])]
+    # dataset = syn_dataset.MultipleBooleanFunctionDataset(d=dimension, p=2, fns = fns)
+    
     # model used for training
     # model = syn_models.TwoLayer(dimension, hidden_size, nn.ReLU()).to(device)
-    num_layers = 2
-
+    
     model = syn_models.NLayer([dimension] + [hidden_size for i in range(num_layers - 1)] + [1], [nn.ReLU() for i in range(num_layers-1)]).to(device)
 
     print(f'Number of parameters: {sum([p.numel() for p in model.parameters() if p.requires_grad])}')
@@ -185,12 +215,16 @@ if __name__ == '__main__':
 
     results = Trainer(model, dataset, loss_fn, optimizer, batch_size, num_iterations, {"test" : dataset}).train()
 
-    losses = results['losses']
     evals = results['evals']
     time_consumption = results['time_consumption']
 
     print(time_consumption)
-    torch.save(losses, 'out/losses.pt')
+
+    RUN_NAME = f"{num_layers}_layer_r2"
+
+    torch.save(results['losses'], f'out/losses_{RUN_NAME}.pt')
+    torch.save(results['multi_losses'], f'out/multi_losses_{RUN_NAME}.pt')
+
 
     program_end_time = time.time()
     print(f"Program took: {program_end_time-program_start_time:0.1f}s to run")

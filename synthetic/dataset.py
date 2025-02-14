@@ -57,6 +57,25 @@ class BooleanFunctionDataset(Dataset):
         y = self.fn(x)
         return x, y
 
+class MultipleBooleanFunctionDataset(Dataset):
+    def __init__(self, d : int, p: int, fns: list):
+        self.fns = fns
+        self.d = d
+        self.p = p
+        assert p == len(fns)
+
+    def __len__(self):
+        return int(1e15)
+
+    def __getitem__(self, idx):
+        x = torch.randn(self.d)
+
+        x = torch.where(x > 0, 1., -1.)
+
+        y = torch.tensor([fn(x) for fn in self.fns])
+
+        return x, y
+
 '''
     Generate instance of a synthetic problem given distribution, dimension, func_type, and device
         dist: Distributon 
