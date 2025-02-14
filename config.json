@@ -1,0 +1,10 @@
+[
+	{
+	"run_id" : "1",
+	"task" : "sparse_parity",
+	"optimizer" : "SGD",
+	"device" : "cpu",
+	"model" : "two_layer",
+	"num_iterations" : 1000,
+	},
+]

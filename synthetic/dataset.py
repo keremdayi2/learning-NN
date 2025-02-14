@@ -1,13 +1,27 @@
 # python stuff
 import argparse
-import dataclasses
 import typing 
 from typing import Union, Optional
+from enum import Enum
+
+import math
 
 # pytorch et. al
 import torch
 from torch.utils.data import Dataset, DataLoader
-from func import *
+
+
+# ours
+
+from .func import *
+
+class Distribution(Enum):
+    Gaussian = 1
+    Boolean = 2
+
+class FunctionType(Enum):
+    Monomial = 1 
+    Staircase = 2
 
 class GaussianFunctionDataset(Dataset):
     def __init__(self, d : int, fn, device : str = 'cpu'):
@@ -37,6 +51,40 @@ class BooleanFunctionDataset(Dataset):
         y = self.fn(x)
         return x, y
 
+'''
+    Generate instance of a synthetic problem given distribution, dimension, func_type, and device
+        dist: Distributon 
+        d: data dimension
+        k: problem dimension (e.g. degree of poly, subspace dimension)
+        fn_type: function type (see above)
+        device: "cpu" or "cuda" or etc.
+'''
+def generate_synthetic_dataset(dist: Distribution, d : int, k : int, fn_type : FunctionType, device : str):
+    # first initialize function
+    idxs = []
+    # then k is the degree of the function
+    match fn_type:
+        case FunctionType.Monomial:
+            idxs.append([i for i in range(k)])
+        case FunctionType.Staircase:
+            idxs = [list(range(i+1)) for i in range(k)]
+        case _:
+            raise RuntimeError("You did not specify a valid function type")
+
+    fn = None
+    dataset = None
+
+    match dist:
+        case Distribution.Boolean:
+            fn = ParityFunction(d, idxs, device = device)
+            dataset = BooleanFunctionDataset(d, fn, device = device)
+        case Distribution.Gaussian:
+            raise NotImplementedError("Gaussian data not implemented yet")
+        case _:
+            raise RuntimeError("You did not specify a valid distribution type")
+
+    return dataset
+    
 
 if __name__ == '__main__':
     functypes = ['parity']

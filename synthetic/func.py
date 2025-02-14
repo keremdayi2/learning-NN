@@ -4,6 +4,8 @@ import dataclasses
 import typing
 from typing import Union, Optional
 
+import math
+
 # numerics imports
 import torch
 
@@ -72,7 +74,7 @@ class ParityFunction:
         x = x.unsqueeze(1).repeat(1, self.k, 1)
         y = x * self.masks
         y = y + (1. - self.masks)
-        return y.prod(2).sum(1)
+        return y.prod(2).sum(1) / math.sqrt(self.k)
      
     def __call__(self, x):
         return self.forward(x)
