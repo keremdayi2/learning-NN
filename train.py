@@ -84,9 +84,10 @@ if __name__ == '__main__':
     time_logger = timers.TimeLogger()
 
     for  i, (x, y) in enumerate(dataloader):
+        time_logger.log("data_gen")
         x, y = x.to(device), y.to(device)
-
-        time_logger.log("data")
+        time_logger.log("data_gpu")
+        
 
         print_flag = (i+1) % ITERATION_PRINT_FREQUENCY == 0 or i == 0
         if print_flag:

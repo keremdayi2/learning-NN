@@ -69,25 +69,23 @@ def generate_synthetic_dataset(dist: Distribution, d : int, k : int, fn_type : F
     # first initialize function
     idxs = []
     # then k is the degree of the function
-    match fn_type:
-        case FunctionType.Monomial:
-            idxs.append([i for i in range(k)])
-        case FunctionType.Staircase:
-            idxs = [list(range(i+1)) for i in range(k)]
-        case _:
-            raise RuntimeError("You did not specify a valid function type")
+    if fn_type == FunctionType.Monomial:
+        idxs.append([i for i in range(k)])
+    if fn_type == FunctionType.Staircase:
+        idxs = [list(range(i+1)) for i in range(k)]
+    else:
+        raise RuntimeError("You did not specify a valid function type")
 
     fn = None
     dataset = None
 
-    match dist:
-        case Distribution.Boolean:
-            fn = ParityFunction(d, idxs, device = device)
-            dataset = BooleanFunctionDataset(d, fn, device = device)
-        case Distribution.Gaussian:
-            raise NotImplementedError("Gaussian data not implemented yet")
-        case _:
-            raise RuntimeError("You did not specify a valid distribution type")
+    if dist == Distribution.Boolean:
+        fn = ParityFunction(d, idxs, device = device)
+        dataset = BooleanFunctionDataset(d, fn, device = device)
+    elif dist == Distribution.Gaussian:
+        raise NotImplementedError("Gaussian data not implemented yet")
+    else:
+        raise RuntimeError("You did not specify a valid distribution type")
 
     return dataset
     
