@@ -5,6 +5,7 @@
 #SBATCH --mem=20G
 #SBATCH -t 0-6:00 
 #SBATCH -c 1
+#SBATCH --chdir=/n/home04/keremdayi/learning-NN
 #SBATCH --output=/n/home04/keremdayi/logs/learning-NN_%A__%a.out
 #SBATCH --mail-user=keremdayi@college.harvard.edu
 #SBATCH --mail-type=ALL

@@ -143,7 +143,7 @@ class Trainer:
 
             # evaluate model given the datasets and functions and print results
             if eval_flag:
-                print(20*'-' + f"Iteration {i+1}" + 20 * '-')
+                print(20 * '-' + f"Iteration {i+1}" + 20 * '-')
                 a, b = self.eval()
 
                 for dataset, loss in a.items():
