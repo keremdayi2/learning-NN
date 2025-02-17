@@ -3,8 +3,8 @@
 #SBATCH --partition gpu_requeue
 #SBATCH --gres=gpu:nvidia_a40:1
 #SBATCH --mem=32G
-#SBATCH -t 0-3:00 
-#SBATCH -c 8
+#SBATCH -t 0-6:00 
+#SBATCH -c 4
 #SBATCH --output=/n/home04/keremdayi/logs/learning-NN_%A__%a.out
 #SBATCH --mail-user=keremdayi@college.harvard.edu
 #SBATCH --mail-type=ALL
