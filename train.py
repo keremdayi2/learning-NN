@@ -12,7 +12,7 @@ import synthetic.dataset as syn_dataset
 import synthetic.models as syn_models
 
 # tools
-import tools.timers as timers
+import tools.TimeLogger as TimeLogger
 
 
 # printing variables
@@ -33,7 +33,7 @@ step_size = 1e-4
 num_iterations = 5000
 batch_size = 64
 
-# model params
+# model params 
 num_layers = 2
 
 
@@ -103,7 +103,7 @@ class Trainer:
         return dataset_results, fn_results
 
     def train(self):
-        time_logger = timers.TimeLogger()
+        time_logger = TimeLogger()
 
         eval_results = []
 
