@@ -58,7 +58,8 @@ class BooleanFunctionDataset(Dataset):
         return x, y
 
 class MultipleBooleanFunctionDataset(Dataset):
-    def __init__(self, d : int, p: int, fns: list):
+    def __init__(self, d : int, p: int, fns: list, device : str = 'cpu'):
+        self.device = device
         self.fns = fns
         self.d = d
         self.p = p
@@ -68,7 +69,7 @@ class MultipleBooleanFunctionDataset(Dataset):
         return int(1e15)
 
     def __getitem__(self, idx):
-        x = torch.randn(self.d)
+        x = torch.randn(self.d).to(self.device)
 
         x = torch.where(x > 0, 1., -1.)
 

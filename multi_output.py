@@ -23,6 +23,7 @@ DEFAULT_BATCH_SZ = 64
 DEFAULT_HIDDEN_SZ = 2048
 DEFAULT_OPTIMIZER = "SGD"
 
+data_device = 'cpu'
 
 if __name__ == '__main__':
     program_start_time = time.time()
@@ -42,7 +43,8 @@ if __name__ == '__main__':
     parser.add_argument("--hidden_size", type = int, default=DEFAULT_HIDDEN_SZ)
     parser.add_argument("--dimension", type = int, default=DEFAULT_DIMENSION)
     parser.add_argument("--num_iterations", type = int, default= int(1e4), help = "Specify the number of iterations")
-
+    parser.add_argument("--num_workers", type = int, default = 0, help =
+    "specify the number of workers to use in data loading")
 
     args = parser.parse_args()
 
@@ -65,14 +67,17 @@ if __name__ == '__main__':
     args = parser.parse_args()
 
     torch.manual_seed(args.seed)
-    
+
     # create the functions to be learned
     fns = []
-    for i in range(args.num_outputs):
-        rng = args.leap * i + 1
-        fns.append(syn_fn.ParityFunction(args.dimension, [list(range(rng))]))
+    if args.num_outputs > 1:
+        for i in range(args.num_outputs):
+            rng = args.leap * i + 1
+            fns.append(syn_fn.ParityFunction(args.dimension, [list(range(rng))], device = data_device))
+    else:
+        fns.append(syn_fn.ParityFunction(args.dimension, [list(range(args.leap))], device = data_device))
 
-    dataset = syn_dataset.MultipleBooleanFunctionDataset(args.dimension, args.num_outputs, fns)
+    dataset = syn_dataset.MultipleBooleanFunctionDataset(args.dimension, args.num_outputs, fns, device = data_device)
 
     # create the model to be used in training    
     model = syn_models.NLayer([args.dimension] + [args.hidden_size for i in range(args.num_layers - 1)] + [args.num_outputs], [nn.ReLU() for i in range(args.num_layers-1)]).to(device)
@@ -90,7 +95,9 @@ if __name__ == '__main__':
     else:
         raise RuntimeError(f"Invalid optimizer {args.optimizer}")
 
-    results = train.Trainer(model, dataset, loss_fn, optimizer, args.batch_size, args.num_iterations, {"test" : dataset}).train()
+    results = train.Trainer(model, dataset, loss_fn, optimizer,
+            args.batch_size, args.num_iterations, {"test" : dataset},
+            num_workers = args.num_workers).train()
 
     time_consumption = results['time_consumption']
 

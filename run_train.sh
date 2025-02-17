@@ -1,11 +1,10 @@
 #!/bin/sh
 #SBATCH --job-name=learning-NN
-#SBATCH --partition seas_gpu
-#SBATCH --gres=gpu:nvidia_a100-sxm4-80gb:1
-#SBATCH --mem=20G
-#SBATCH -t 0-6:00 
-#SBATCH -c 1
-#SBATCH --chdir=/n/home04/keremdayi/learning-NN
+#SBATCH --partition gpu_requeue
+#SBATCH --gres=gpu:nvidia_a40:1
+#SBATCH --mem=32G
+#SBATCH -t 0-3:00 
+#SBATCH -c 8
 #SBATCH --output=/n/home04/keremdayi/logs/learning-NN_%A__%a.out
 #SBATCH --mail-user=keremdayi@college.harvard.edu
 #SBATCH --mail-type=ALL
@@ -19,4 +18,5 @@ export GLOO_SOCKET_IFNAME=eth0
 export MASTER_ADDR="127.0.0.1"
 export MASTER_PORT=29500
 
-python /n/home04/keremdayi/learning-NN/train.py --device=cuda --seed=62
+cd /n/home04/keremdayi/learning-NN
+bash run_multi_out.sh

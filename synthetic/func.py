@@ -43,39 +43,20 @@ class ParityFunction:
         self.idxs = idxs
         self.k = len(idxs)
         self.device = device
-        self.masks = torch.zeros((self.k, d))
-        self.batch_size = batch_size
         self.d = d
-
-        for i, idx in enumerate(self.idxs):
-            for j in idx:
-                self.masks[i][j] = 1
-
-        if self.batch_size is not None:
-            self.masks = self.masks.unsqueeze(0).expand(self.batch_size, -1, -1)
-
-        self.masks = self.masks.to(self.device)
-
+    
     def forward(self, x : torch.tensor):
-        # check batch sizing
-        # 
-        masks = None
+        if len(x.shape) == 1:
+            x = x.unsqueeze(0)
 
-        if self.batch_size is None:
-            if len(x.shape) == 1:
-                x = x.unsqueeze(0)
+        y = torch.zeros(x.shape[0], dtype = x.dtype).to(self.device)
 
-            masks = self.masks.unsqueeze(0).expand(x.shape[0], -1, -1)
-        else:
-            if not (len(x.shape) == 2 and self.batch_size == x.shape[0]):
-                raise RuntimeError(f"Batch size of data ({x.shape}) does not match batch size of fn ({self.batch_size})")
-            masks = self.masks
-        
-        x = x.unsqueeze(1).expand(-1, self.k, -1)
-        y = x * self.masks
-        y = y + (1. - self.masks)
-        return y.prod(2).sum(1) / math.sqrt(self.k)
-     
+        for idx in self.idxs:
+            # (B, len(idx))
+            y += x[:, idx].prod(dim=1)
+
+        return y
+
     def __call__(self, x):
         return self.forward(x)
 

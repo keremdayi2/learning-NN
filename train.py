@@ -16,9 +16,9 @@ import tools.timers as timers
 
 
 # printing variables
-ITERATION_PRINT_FREQUENCY = 500
-TEST_DATASET_SIZE = 16
-EVAL_FREQUENCY = 500
+ITERATION_PRINT_FREQUENCY = 1000
+TEST_DATASET_SIZE = 8
+EVAL_FREQUENCY = 5000
 
 # problem variables
 dimension = 512
@@ -48,12 +48,13 @@ class Trainer:
         batch_size : int, 
         num_iterations : int,
         eval_datasets : dict, # list of datasets to evaluate the model on 
+        num_workers : int = 1,
         eval_fns : dict = {} # list of eval functions to run
         ):
         self.model = model
         self.dataset = dataset
-        self.dataloader = torch.utils.data.DataLoader(self.dataset, batch_size = batch_size)
-
+        self.dataloader = torch.utils.data.DataLoader(self.dataset, batch_size = batch_size, num_workers = num_workers)
+        self.num_workers = num_workers
         self.loss_fn = loss_fn
         self.optimizer = optimizer
         self.batch_size = batch_size
@@ -70,7 +71,8 @@ class Trainer:
         # run dataset evals
         with torch.no_grad():
             for label, dataset in self.eval_datasets.items():
-                dataloader = torch.utils.data.DataLoader(dataset, batch_size=self.batch_size)
+                dataloader = torch.utils.data.DataLoader(dataset,
+                        batch_size=self.batch_size)
 
                 n_outputs = 0
                 for x,y in dataloader:
@@ -109,7 +111,8 @@ class Trainer:
         multi_losses = []
         for i, (x,y) in enumerate(self.dataloader):
             # eval flag
-            eval_flag = i % ITERATION_PRINT_FREQUENCY == 0 or i == 0
+            print_flag = i % ITERATION_PRINT_FREQUENCY == 0 or i == 0
+            eval_flag = i % EVAL_FREQUENCY == 0 or i == 0
 
             if i == self.num_iterations:
                 break
@@ -142,6 +145,10 @@ class Trainer:
             time_logger.log("grad")
 
             # evaluate model given the datasets and functions and print results
+            if print_flag and not eval_flag:
+                print(20 * '-' + f"Iteration {i+1}" + 20 * '-')
+                print(f'Last loss {losses[-1]}')
+
             if eval_flag:
                 print(20 * '-' + f"Iteration {i+1}" + 20 * '-')
                 a, b = self.eval()
