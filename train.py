@@ -12,11 +12,11 @@ import synthetic.dataset as syn_dataset
 import synthetic.models as syn_models
 
 # tools
-import tools.TimeLogger as TimeLogger
+from tools import TimeLogger
 
 
 # printing variables
-ITERATION_PRINT_FREQUENCY = 1000
+ITERATION_PRINT_FREQUENCY = 2000
 TEST_DATASET_SIZE = 8
 EVAL_FREQUENCY = 5000
 
@@ -49,8 +49,10 @@ class Trainer:
         num_iterations : int,
         eval_datasets : dict, # list of datasets to evaluate the model on 
         num_workers : int = 1,
-        eval_fns : dict = {} # list of eval functions to run
-        ):
+        eval_fns : dict = {}, # list of eval functions to run
+        eval_freq : int | None = None,
+        print_freq :int | None = None
+                 ):
         self.model = model
         self.dataset = dataset
         self.dataloader = torch.utils.data.DataLoader(self.dataset, batch_size = batch_size, num_workers = num_workers)
@@ -61,6 +63,8 @@ class Trainer:
         self.num_iterations = num_iterations
         self.eval_datasets = eval_datasets
         self.eval_fns = eval_fns
+        self.eval_freq = EVAL_FREQUENCY if eval_freq is None else eval_freq
+        self.print_freq = ITERATION_PRINT_FREQUENCY if print_freq is None else print_freq
 
         self.device = next(self.model.parameters()).device
 
@@ -111,8 +115,9 @@ class Trainer:
         multi_losses = []
         for i, (x,y) in enumerate(self.dataloader):
             # eval flag
-            print_flag = i % ITERATION_PRINT_FREQUENCY == 0 or i == 0
-            eval_flag = i % EVAL_FREQUENCY == 0 or i == 0
+            print_flag = i % self.print_freq == 0 or i == 0
+            
+            eval_flag = i % self.eval_freq == 0 or i == 0
 
             if i == self.num_iterations:
                 break

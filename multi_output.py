@@ -67,7 +67,7 @@ if __name__ == '__main__':
     args = parser.parse_args()
 
     torch.manual_seed(args.seed)
-
+    
     # create the functions to be learned
     fns = []
     if args.num_outputs > 1:
@@ -99,6 +99,8 @@ if __name__ == '__main__':
             args.batch_size, args.num_iterations, {"test" : dataset},
             num_workers = args.num_workers).train()
 
+        
+
     time_consumption = results['time_consumption']
 
     print(time_consumption)
@@ -126,5 +128,9 @@ if __name__ == '__main__':
     torch.save(results['losses'], f'{directory}/losses.pt')
     torch.save(results['multi_losses'], f'{directory}/multi_losses.pt')
 
+    
+
     program_end_time = time.time()
     print(f"Program took: {program_end_time-program_start_time:0.1f}s to run")
+    # print how long program took
+     

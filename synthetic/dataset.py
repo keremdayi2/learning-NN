@@ -34,11 +34,10 @@ class GaussianFunctionDataset(Dataset):
         return int(1e15)
 
     def __getitem__(self, idx):
-        x = torch.randn(self.d).to(self.device)
-        y = self.fn(x)
-        
-        
-        return x, y
+        with torch.no_grad():
+            x = torch.randn(self.d).to(self.device)
+            y = self.fn(x)
+            return x, y
 
 class BooleanFunctionDataset(Dataset):
     def __init__(self, d : int, fn, device : str = 'cpu'):

@@ -8,6 +8,27 @@ from enum import Enum
 import torch
 import torch.nn as nn
 
+class SingleIndex(nn.Module):
+    def __init__(self, dimension : int, activation : nn.Module, u_norm : float | None = None):
+        super().__init__()
+        self.fc1 = nn.Linear(dimension, 1)
+        
+        u = torch.randn(1, dimension) / torch.sqrt(torch.tensor(dimension))
+        self.fc1.weight = torch.nn.Parameter(u) 
+
+        if not u_norm is None:
+            with torch.no_grad():
+                self.fc1.weight *= u_norm/self.fc1.weight.norm()
+        self.activation = activation
+
+        # set the bias to 0 and do not train!
+        self.fc1.bias.requires_grad = False
+        self.fc1.bias.fill_(0)
+
+    def forward(self, x):
+        x = self.fc1(x)
+        return self.activation(x)
+
 # two layer regression model
 class TwoLayer(nn.Module):
 	def __init__(self, dimension : int, hidden_size : int, activation : nn.Module):
