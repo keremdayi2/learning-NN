@@ -29,6 +29,31 @@ class SingleIndex(nn.Module):
         x = self.fc1(x)
         return self.activation(x)
 
+class MeanField(nn.Module): 
+    def __init__(self, dimension : int, hidden_size : int):
+        super().__init__()
+
+        self.dimension = dimension
+        self.hidden_size = hidden_size
+
+        self.fc1 = nn.Linear(dimension, hidden_size, bias=False)
+
+        u = torch.randn(hidden_size, dimension) / torch.sqrt(torch.tensor(dimension)) 
+        self.fc1.weight = torch.nn.Parameter(u) 
+
+        # use shifted sigmoid for the activation
+        self.activation = nn.Sigmoid()
+        self.fc2 = nn.Linear(hidden_size, 1, bias=False)
+
+        # initialize second layer Unif[-1,1]
+        self.fc2.weight = nn.Parameter(2*torch.rand((1, hidden_size))-1)
+            
+    def forward(self, x):
+        x = self.fc1(x)
+        # use shifted sigmoid
+        x = self.activation(x-0.5)
+        return self.fc2(x) / self.hidden_size
+
 # two layer regression model
 class TwoLayer(nn.Module):
 	def __init__(self, dimension : int, hidden_size : int, activation : nn.Module):
@@ -37,6 +62,8 @@ class TwoLayer(nn.Module):
 		self.fc1 = nn.Linear(dimension, hidden_size)
 		self.activation = activation
 		self.fc2 = nn.Linear(hidden_size, 1)
+
+            
 
 	def forward(self, x):
 		x = self.fc1(x)
